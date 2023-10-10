@@ -1,0 +1,82 @@
+---
+title: "oneSampleBootstrap"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+
+# load the data
+# set your path
+salaries = read.csv("your_path/uclaUscSalaries.csv") 
+
+numSamples = nrow(salaries) # how many datapoints do we have?
+
+# format the data
+uscSalaries = salaries$usc
+```
+
+```{r one-sample bootstrap}
+# plot results
+hist(uscSalaries, 40, xlim= c(0,250))
+
+# what is the test statistic on the actual data?
+# mean
+testStatObservedmean = mean(uscSalaries)
+# median
+testStatObservedmedian = median(uscSalaries)
+
+# what could have happened by chance?
+numResamples = 10000
+# mean
+testStatisticDistributionmean = rep(NA, numResamples) # initialize the variable we'll use to store each perm's test stat
+# median
+testStatisticDistributionmedian = rep(NA, numResamples)
+
+for (i in 1 : numResamples) {
+  # resample
+  bootstrappedSalaries = sample(uscSalaries, numSamples, replace=TRUE)
+  
+  # compute test statistic
+  testStatisticDistributionmean[i] = mean(bootstrappedSalaries)
+  testStatisticDistributionmedian[i] = median(bootstrappedSalaries)
+}
+
+## Percentile Confidence Interval
+# sort the data into ascending order
+# mean
+testStatisticDistributionSortedmean <- sort(testStatisticDistributionmean)
+print(testStatisticDistributionSortedmean[1:10])
+print(testStatisticDistributionSortedmean[9991:10000])
+# median
+testStatisticDistributionSortedmedian <- sort(testStatisticDistributionmedian)
+print(testStatisticDistributionSortedmedian[1:10])
+print(testStatisticDistributionSortedmedian[9991:10000])
+
+# calculate confidence interval
+# mean
+CImean = testStatisticDistributionSortedmean[c(.025*numResamples, .975*numResamples)]
+# median
+CImedian = testStatisticDistributionSortedmedian[c(.025*numResamples, .975*numResamples)]
+
+## Plot
+# visualize test statistic distribution
+# add in confidence intervals
+# mean
+hist(testStatisticDistributionmean, 40, main="Estimates of test statistic for mean", xlab="Test statistic value")
+abline(v=testStatObservedmean, col="green")
+abline(v=CImean[1], col="blue")
+abline(v=CImean[2], col="blue")
+# median
+hist(testStatisticDistributionmedian, 40, main="Estimates of test statistic for median", xlab="Test statistic value")
+abline(v=testStatObservedmedian, col="green")
+abline(v=CImedian[1], col="blue")
+abline(v=CImedian[2], col="blue")
+
+# print pvalue
+# mean
+sprintf("observed test statistic %g, with 95%% CI: %g to %g for mean", testStatObservedmean, CImean[1], CImean[2])
+# median
+sprintf("observed test statistic %g, with 95%% CI: %g to %g for mean", testStatObservedmean, CImedian[1], CImedian[2])
+```
