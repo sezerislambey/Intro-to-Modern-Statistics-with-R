@@ -1,0 +1,64 @@
+---
+title: "anova"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+numResamples = 10000
+```
+
+```{r load, echo=TRUE}
+
+df <- PlantGrowth
+
+# Define functions to compute the Sum of Squares, and Sum of Abs
+ssq <- function(x) sum(x^2)
+sab <- function(x) sum(abs(x))
+
+SSstat <- function(Y, group, center=mean, agg=ssq){
+  groupMeans = ave(Y, group, FUN = center)
+  SSB = agg(groupMeans - center(Y))
+  return(SSB)
+}
+
+# A more general function to compute the F-statistic
+Fstat <- function(Y, group, center=mean, agg=ssq) {
+  groupMeans = ave( Y, group, FUN = center)
+  SSB = agg(groupMeans - center(Y))
+  SSW = agg(Y - groupMeans)
+  return( SSB / SSW)
+}
+
+```
+
+
+```{r anova}
+
+# what did original data show?
+origEffectSize <- Fstat(df$weight,df$group, center=mean, agg=ssq)
+
+# Permutations to obtain pval
+testStatisticDistribution <- rep(NA,numResamples)
+
+for(i in 1:numResamples){
+  df$boot <- sample(df$weight, replace=F)
+  testStatisticDistribution[i] <- Fstat(df$boot, df$group, center=mean, agg=ssq)
+}
+pval <- sum(testStatisticDistribution > origEffectSize)/numResamples
+
+# print the results
+sprintf("observed effect %g, pval of observed effect %g", origEffectSize, pval)
+
+# bounds
+sortedTestStatisticDistribution <- sort(testStatisticDistribution)
+testStatisticRightBound <- sortedTestStatisticDistribution[.95*numResamples]
+
+# plot results
+par(mfrow=c(1,1))
+hist(testStatisticDistribution, 40, xlab = "Test Statistic", main = "Histogram of Null Distribution")
+abline(v=origEffectSize, col="green")
+abline(v=testStatisticRightBound, col="red")
+```
+
