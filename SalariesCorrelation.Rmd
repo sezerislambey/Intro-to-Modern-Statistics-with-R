@@ -1,0 +1,103 @@
+---
+title: "SalariesCorrelation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# load the data
+# set your path
+salaries = read.csv("your_path/uclaUscSalaries.csv")
+
+numSamples = nrow(salaries) # how many datapoints do we have?
+
+# format the data
+uscSalaries = salaries$usc
+uclaSalaries = salaries$ucla
+irvineSalaries = salaries$irvine
+```
+
+# Significance
+## Paired null hypothesis permutation test
+
+```{r paired significance bootstrap}
+
+
+# what is the test statistic on the actual data?
+testStatObserved = cor(uscSalaries, uclaSalaries)
+
+numResamples = 10000
+salariesToPermute = salaries # create a duplicate dataframe that we can shuffle
+testStatisticDistribution = rep(NA,numResamples) # initialize the variable we'll use to store each perm's test stat
+for (i in 1 : numResamples) {
+  # resample under null (shuffle each variable, independently)
+  salariesToPermute$usc = sample( uscSalaries, numSamples, replace = F)
+  salariesToPermute$ucla = sample( uclaSalaries, numSamples, replace = F)
+  
+  # calculate statistic
+  testStatisticDistribution[i] = cor( salariesToPermute$usc, salariesToPermute$ucla, method = "spearman")
+}
+
+## confidence intervals
+sortedTestStatisticDistribution <- sort(testStatisticDistribution)
+testStatisticLeftBound <- sortedTestStatisticDistribution[.025*numResamples]
+testStatisticRightBound <- sortedTestStatisticDistribution[.975*numResamples]
+
+# what did original data show?
+testStatObserved = cor( salaries$usc, salaries$ucla, method = "spearman" )
+
+# calculate p-value
+pval <- (sum(testStatisticDistribution >= abs(testStatObserved)) + 
+           sum(testStatisticDistribution <= -abs(testStatObserved))) / (numResamples)
+
+sprintf("null distribution; observed effect %g, pval of observed effect %g", testStatObserved, pval)
+```
+
+## paired null hist
+
+```{r paired null hist, echo=FALSE}
+
+par(mfrow=c(1,1))
+
+hist(testStatisticDistribution, 40, xlab="Test Statistic", main="Histogram of Null Distribution")
+abline(v=testStatObserved, col="green")
+abline(v=testStatisticLeftBound, col="red")
+abline(v=testStatisticRightBound, col="red")
+```
+
+## Magnitude of USC/UCLA
+
+```{r paired mag hist, echo=FALSE}
+
+testStatObserved = cor(uscSalaries, uclaSalaries)
+
+sampleIndices = 1:numSamples
+testStatisticDistribution = rep(NA,numResamples)
+for (i in 1 : numResamples) {
+  #resample
+  bootDataInds = sample (sampleIndices, numSamples, replace = T) # replace for bootstrapping
+  bootData = salaries[bootDataInds,]
+  
+  # calculate statistic
+  testStatisticDistribution[i] = cor(bootData$usc, bootData$ucla) # calc fractional salaries
+}
+
+# bounds
+sortedTestStatisticDistribution <- sort(testStatisticDistribution)
+testStatisticLeftBound <- sortedTestStatisticDistribution[.025*numResamples]
+testStatisticRightBound <- sortedTestStatisticDistribution[.975*numResamples]
+```
+
+## plots
+```{r paired hist, echo=FALSE}
+
+par(mfrow=c(1,1))
+
+sprintf("effect size %g (%g, %g)", testStatObserved, testStatisticLeftBound, testStatisticRightBound)
+
+hist(testStatisticDistribution, 40, xlab="Test Statistic", main="Histogram of Bootstraps")
+abline(v=testStatObserved, col="green")
+abline(v=testStatisticLeftBound, col="blue")
+abline(v=testStatisticRightBound, col="blue")
+```
