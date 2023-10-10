@@ -1,0 +1,153 @@
+---
+title: "unpairedPermutattionTest"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# load the data
+# set your path
+salaries = read.csv("your_path/uclaUscSalaries.csv") 
+
+# format the data
+salariesMelted = reshape2::melt(salaries)
+salaries = salariesMelted[c(salariesMelted$variable != "irvine"),]
+colnames(salaries) <- c("school", "salary") # rename variables
+numSamples = nrow(salaries) # how many datapoints do we have?
+
+# find out which rows belong to which schools
+indsUcla = salaries$school == "ucla"
+indsUsc = salaries$school == "usc"
+```
+
+## Paired Null permutation test
+```{r unpaired permutation test}
+# print the data
+print(salaries)
+
+# what is the test statistic on the actual data?
+# mean
+testStatObservedmean = mean(salaries$salary[indsUsc]) - mean(salaries$salary[indsUcla])
+# meanrate
+testStatObservedmeanrate = mean(salaries$salary[indsUsc]) / mean(salaries$salary[indsUcla])
+# median
+testStatObservedmedian = median(salaries$salary[indsUsc]) - median(salaries$salary[indsUcla])
+# medianrate
+testStatObservedmedianrate = median(salaries$salary[indsUsc]) / median(salaries$salary[indsUcla])
+
+# what could have happened by chance?
+numResamples = 10000
+# mean
+testStatisticDistributionmean = rep(NA,numResamples) # initialize the variable we'll use to store each perm's test stat
+# meanrate
+testStatisticDistributionmeanrate = rep(NA,numResamples)
+# median
+testStatisticDistributionmedian = rep(NA,numResamples)
+# medianrata
+testStatisticDistributionmedianrate = rep(NA,numResamples)
+
+for (permNum in 1 : numResamples) {
+  # shuffle the salaries
+  shuffledSalaries = sample(salaries$salary, numSamples, replace = F)
+  uscSalaries = shuffledSalaries[indsUsc]
+  uclaSalaries = shuffledSalaries[indsUcla]
+  
+  # calculate the test statistic for this permutation
+  # mean
+  testStatForThisPermmean = mean( uscSalaries ) - mean( uclaSalaries )
+  # meanrate
+  testStatForThisPermmeanrate = mean( uscSalaries ) / mean( uclaSalaries )
+  # median
+  testStatForThisPermmedian = median( uscSalaries ) - median( uclaSalaries )
+  # medianrate
+  testStatForThisPermmedianrate = median( uscSalaries ) / median( uclaSalaries )
+  
+  # store the test statistic of this permutation
+  # mean
+  testStatisticDistributionmean[permNum] = testStatForThisPermmean
+  # meanrate
+  testStatisticDistributionmeanrate[permNum] = testStatForThisPermmeanrate
+  # median
+  testStatisticDistributionmedian[permNum] = testStatForThisPermmedian
+  # medianrate
+  testStatisticDistributionmedianrate[permNum] = testStatForThisPermmedianrate
+}
+# how many time did chance give me a larger 'result' than my actual observed data?
+# mean
+moreExtremeChanceValuesmean = sum(testStatisticDistributionmean >= abs(testStatObservedmean)) + 
+  sum(testStatisticDistributionmean <= -abs(testStatObservedmean))
+# meanrate
+moreExtremeChanceValuesmeanrate = sum(testStatisticDistributionmeanrate >= abs(testStatObservedmeanrate)) + 
+  sum(testStatisticDistributionmeanrate <= -abs(testStatObservedmeanrate))
+# median
+moreExtremeChanceValuesmedian = sum(testStatisticDistributionmedian >= abs(testStatObservedmedian)) + 
+  sum(testStatisticDistributionmedian <= -abs(testStatObservedmedian))
+# medianrate
+moreExtremeChanceValuesmedianrate = sum(testStatisticDistributionmedianrate >= abs(testStatObservedmedianrate)) + 
+  sum(testStatisticDistributionmedianrate <= -abs(testStatObservedmedianrate))
+
+# calculate the pvalue, as a fraction
+# mean
+pvalmean <- moreExtremeChanceValuesmean / numResamples
+# meanrate
+pvalmeanrate <- moreExtremeChanceValuesmeanrate / numResamples
+# median
+pvalmedian <- moreExtremeChanceValuesmedian / numResamples
+# medianrate
+pvalmedianrate <- moreExtremeChanceValuesmedianrate / numResamples
+
+# print the results
+# mean
+sprintf("observed effect %g, pval of observed effect %g for mean", testStatObservedmean, pvalmean)
+# meanrate
+sprintf("observed effect %g, pval of observed effect %g for meanrate", testStatObservedmeanrate, pvalmeanrate)
+# median
+sprintf("observed effect %g, pval of observed effect %g for median", testStatObservedmedian, pvalmedian)
+# medianrate
+sprintf("observed effect %g, pval of observed effect %g for medianrate", testStatObservedmedianrate, pvalmedianrate)
+
+# bounds
+# mean
+sortedTestStatisticDistributionmean <- sort(testStatisticDistributionmean)
+testStatisticLeftBoundmean <- sortedTestStatisticDistributionmean[.025*numResamples]
+testStatisticRightBoundmean <- sortedTestStatisticDistributionmean[.975*numResamples]
+# meanrate
+sortedTestStatisticDistributionmeanrate <- sort(testStatisticDistributionmeanrate)
+testStatisticLeftBoundmeanrate <- sortedTestStatisticDistributionmeanrate[.025*numResamples]
+testStatisticRightBoundmeanrate <- sortedTestStatisticDistributionmeanrate[.975*numResamples]
+# median
+sortedTestStatisticDistributionmedian <- sort(testStatisticDistributionmedian)
+testStatisticLeftBoundmedian <- sortedTestStatisticDistributionmedian[.025*numResamples]
+testStatisticRightBoundmedian <- sortedTestStatisticDistributionmedian[.975*numResamples]
+# medianrate
+sortedTestStatisticDistributionmedianrate <- sort(testStatisticDistributionmedianrate)
+testStatisticLeftBoundmedianrate <- sortedTestStatisticDistributionmedianrate[.025*numResamples]
+testStatisticRightBoundmedianrate <- sortedTestStatisticDistributionmedianrate[.975*numResamples]
+
+# plot results
+# mean
+par(mfrow=c(1,1))
+hist(testStatisticDistributionmean, 40, xlab = "Test Statistic", main = "Histogram of Null Distribution for Mean")
+abline(v=testStatObservedmean, col="green")
+abline(v=testStatisticLeftBoundmean, col="red")
+abline(v=testStatisticRightBoundmean, col="red")
+# meanrate
+par(mfrow=c(1,1))
+hist(testStatisticDistributionmeanrate, 40, xlab = "Test Statistic", main = "Histogram of Null Distribution for Meanrate")
+abline(v=testStatObservedmeanrate, col="green")
+abline(v=testStatisticLeftBoundmeanrate, col="red")
+abline(v=testStatisticRightBoundmeanrate, col="red")
+# median
+par(mfrow=c(1,1))
+hist(testStatisticDistributionmedian, 40, xlab = "Test Statistic", main = "Histogram of Null Distribution for Median")
+abline(v=testStatObservedmedian, col="green")
+abline(v=testStatisticLeftBoundmedian, col="red")
+abline(v=testStatisticRightBoundmedian, col="red")
+# medianrate
+par(mfrow=c(1,1))
+hist(testStatisticDistributionmedianrate, 40, xlab = "Test Statistic", main = "Histogram of Null Distribution for Medianrate")
+abline(v=testStatObservedmedianrate, col="green")
+abline(v=testStatisticLeftBoundmedianrate, col="red")
+abline(v=testStatisticRightBoundmedianrate, col="red")
+```
